@@ -61,7 +61,7 @@ jobs:
           echo "OCI_OCPUS=4" >> oci.env
           echo "OCI_MEMORY_IN_GBS=24" >> oci.env
           echo "BOOT_VOLUME_SIZE=150" >> oci.env
-          echo "REQUEST_WAIT_TIME_SECS=60" >> oci.env
+          echo "REQUEST_WAIT_TIME_SECS=120" >> oci.env
           echo "ASSIGN_PUBLIC_IP=true" >> oci.env
           echo "DISPLAY_NAME=my-arm-instance" >> oci.env
           echo "SECOND_MICRO_INSTANCE=False" >> oci.env
@@ -113,7 +113,7 @@ jobs:
           SCRIPT_PID=$!
 
           while kill -0 $SCRIPT_PID 2>/dev/null; do
-            sleep 120
+            sleep 300
             LINES=$(tail -10 launch_instance.log 2>/dev/null)
             if [ -n "$LINES" ]; then
               echo "$LINES" | python tg.py
