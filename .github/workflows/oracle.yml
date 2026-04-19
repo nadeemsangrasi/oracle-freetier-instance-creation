@@ -70,6 +70,8 @@ jobs:
 
       - name: Run script
         run: |
-          python main.py 2>&1 | tee output.log
-          echo "=== LAST 50 LINES ==="
-          tail -50 output.log
+          python main.py 2>&1 | tee output.log || true
+          echo "## Script Output" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          tail -50 output.log >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
