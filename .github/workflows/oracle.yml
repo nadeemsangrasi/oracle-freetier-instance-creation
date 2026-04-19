@@ -1,0 +1,67 @@
+name: Oracle ARM Instance Creator
+
+on:
+  schedule:
+    - cron: '*/10 * * * *'
+  workflow_dispatch:
+
+jobs:
+  create-instance:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v3
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Write private key
+        run: |
+          echo "${{ secrets.OCI_PRIVATE_KEY }}" > private_key.pem
+          chmod 600 private_key.pem
+
+      - name: Write OCI config
+        run: |
+          mkdir -p ~/.oci
+          echo "[DEFAULT]" > ~/.oci/config
+          echo "user=${{ secrets.OCI_USER }}" >> ~/.oci/config
+          echo "fingerprint=${{ secrets.OCI_FINGERPRINT }}" >> ~/.oci/config
+          echo "tenancy=${{ secrets.OCI_TENANCY }}" >> ~/.oci/config
+          echo "region=${{ secrets.OCI_REGION }}" >> ~/.oci/config
+          echo "key_file=${{ github.workspace }}/private_key.pem" >> ~/.oci/config
+          chmod 600 ~/.oci/config
+
+      - name: Write oci.env
+        run: |
+          echo "OCI_CONFIG=~/.oci/config" > oci.env
+          echo "OCI_USER=${{ secrets.OCI_USER }}" >> oci.env
+          echo "OCI_FINGERPRINT=${{ secrets.OCI_FINGERPRINT }}" >> oci.env
+          echo "OCI_TENANCY=${{ secrets.OCI_TENANCY }}" >> oci.env
+          echo "OCI_REGION=${{ secrets.OCI_REGION }}" >> oci.env
+          echo "OCI_SUBNET_ID=${{ secrets.OCI_SUBNET_ID }}" >> oci.env
+          echo "OCT_FREE_AD=${{ secrets.OCI_AD }}" >> oci.env
+          echo "OCI_COMPUTE_SHAPE=VM.Standard.A1.Flex" >> oci.env
+          echo "OPERATING_SYSTEM=Canonical Ubuntu" >> oci.env
+          echo "OS_VERSION=24.04" >> oci.env
+          echo "OCI_OCPUS=4" >> oci.env
+          echo "OCI_MEMORY_IN_GBS=24" >> oci.env
+          echo "BOOT_VOLUME_SIZE=150" >> oci.env
+          echo "REQUEST_WAIT_TIME_SECS=60" >> oci.env
+          echo "ASSIGN_PUBLIC_IP=true" >> oci.env
+          echo "DISPLAY_NAME=my-arm-instance" >> oci.env
+          echo "SECOND_MICRO_INSTANCE=False" >> oci.env
+          echo "NOTIFY_EMAIL=False" >> oci.env
+          echo "EMAIL=" >> oci.env
+          echo "EMAIL_PASSWORD=" >> oci.env
+          echo "DISCORD_WEBHOOK=" >> oci.env
+          echo "SSH_AUTHORIZED_KEYS_FILE=" >> oci.env
+          echo "OCI_IMAGE_ID=" >> oci.env
+
+      - name: Run script
+        run: python main.py
