@@ -37,6 +37,11 @@ jobs:
           echo "key_file=${{ github.workspace }}/private_key.pem" >> $HOME/.oci/config
           chmod 600 $HOME/.oci/config
 
+      - name: Generate SSH key for instance
+        run: |
+          mkdir -p $HOME/.ssh
+          ssh-keygen -t rsa -b 2048 -f $HOME/.ssh/oci_key -N ""
+
       - name: Write oci.env
         run: |
           echo "OCI_CONFIG=$HOME/.oci/config" > oci.env
@@ -60,7 +65,7 @@ jobs:
           echo "EMAIL=" >> oci.env
           echo "EMAIL_PASSWORD=" >> oci.env
           echo "DISCORD_WEBHOOK=" >> oci.env
-          echo "SSH_AUTHORIZED_KEYS_FILE=" >> oci.env
+          echo "SSH_AUTHORIZED_KEYS_FILE=$HOME/.ssh/oci_key.pub" >> oci.env
           echo "OCI_IMAGE_ID=" >> oci.env
 
       - name: Run script
