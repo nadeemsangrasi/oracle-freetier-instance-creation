@@ -109,16 +109,26 @@ jobs:
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
           PYTHONUNBUFFERED: "1"
         run: |
-          python -u main.py 2>&1 | tee output.log &
+          python -u main.py > output.log 2>&1 &
           SCRIPT_PID=$!
+          echo "Script PID: $SCRIPT_PID"
+          
+          COUNTER=0
           while kill -0 $SCRIPT_PID 2>/dev/null; do
-            sleep 300
-            if [ -f output.log ] && [ -s output.log ]; then
-              tail -10 output.log | python tg.py
-            else
-              echo "Script running - no output yet" | python tg.py
+            sleep 60
+            COUNTER=$((COUNTER + 1))
+            
+            # Send update every 5 mins (every 5 loops)
+            if [ $((COUNTER % 5)) -eq 0 ]; then
+              LINES=$(tail -10 output.log 2>/dev/null)
+              if [ -n "$LINES" ]; then
+                echo "$LINES" | python tg.py
+              else
+                echo "Script running - PID $SCRIPT_PID still alive, no output yet" | python tg.py
+              fi
             fi
           done
+          
           wait $SCRIPT_PID || true
 
       - name: Final notification
