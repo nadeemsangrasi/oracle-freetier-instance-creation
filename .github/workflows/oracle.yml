@@ -111,24 +111,22 @@ jobs:
         run: |
           python -u main.py > output.log 2>&1 &
           SCRIPT_PID=$!
-          echo "Script PID: $SCRIPT_PID"
-          
-          COUNTER=0
+
           while kill -0 $SCRIPT_PID 2>/dev/null; do
-            sleep 60
-            COUNTER=$((COUNTER + 1))
-            
-            # Send update every 5 mins (every 5 loops)
-            if [ $((COUNTER % 5)) -eq 0 ]; then
+            sleep 120
+            LINES=$(tail -10 launch_instance.log 2>/dev/null)
+            if [ -n "$LINES" ]; then
+              echo "$LINES" | python tg.py
+            else
               LINES=$(tail -10 output.log 2>/dev/null)
               if [ -n "$LINES" ]; then
                 echo "$LINES" | python tg.py
               else
-                echo "Script running - PID $SCRIPT_PID still alive, no output yet" | python tg.py
+                echo "Script PID $SCRIPT_PID alive - waiting for logs..." | python tg.py
               fi
             fi
           done
-          
+
           wait $SCRIPT_PID || true
 
       - name: Final notification
