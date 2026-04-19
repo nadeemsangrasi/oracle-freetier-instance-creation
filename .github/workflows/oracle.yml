@@ -107,13 +107,16 @@ jobs:
         env:
           TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          PYTHONUNBUFFERED: "1"
         run: |
-          python main.py 2>&1 | tee output.log &
+          python -u main.py 2>&1 | tee output.log &
           SCRIPT_PID=$!
           while kill -0 $SCRIPT_PID 2>/dev/null; do
             sleep 300
-            if [ -f output.log ]; then
+            if [ -f output.log ] && [ -s output.log ]; then
               tail -10 output.log | python tg.py
+            else
+              echo "Script running - no output yet" | python tg.py
             fi
           done
           wait $SCRIPT_PID || true
