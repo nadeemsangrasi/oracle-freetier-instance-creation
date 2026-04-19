@@ -71,6 +71,8 @@ jobs:
           echo "DISCORD_WEBHOOK=" >> oci.env
           echo "SSH_AUTHORIZED_KEYS_FILE=$HOME/.ssh/oci_key.pub" >> oci.env
           echo "OCI_IMAGE_ID=" >> oci.env
+          echo "TELEGRAM_TOKEN=${{ secrets.TELEGRAM_TOKEN }}" >> oci.env
+          echo "TELEGRAM_USER_ID=${{ secrets.TELEGRAM_USER_ID }}" >> oci.env
 
       - name: Write telegram script
         run: |
