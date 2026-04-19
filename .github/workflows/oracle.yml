@@ -2,8 +2,12 @@ name: Oracle ARM Instance Creator
 
 on:
   schedule:
-    - cron: '*/10 * * * *'
+    - cron: '0 */6 * * *'
   workflow_dispatch:
+
+concurrency:
+  group: oracle-creator
+  cancel-in-progress: false
 
 jobs:
   create-instance:
@@ -68,9 +72,40 @@ jobs:
           echo "SSH_AUTHORIZED_KEYS_FILE=$HOME/.ssh/oci_key.pub" >> oci.env
           echo "OCI_IMAGE_ID=" >> oci.env
 
+      - name: Notify start
+        run: |
+          curl -s -X POST "https://api.telegram.org/bot${{ secrets.TELEGRAM_TOKEN }}/sendMessage" \
+            -d chat_id="${{ secrets.TELEGRAM_CHAT_ID }}" \
+            -d text="🚀 Oracle script started - trying to create ARM instance in Mumbai region..."
+
       - name: Run script
         run: |
           python main.py 2>&1 | tee output.log || true
+
+      - name: Send logs to Telegram
+        if: always()
+        run: |
+          LOG=$(tail -30 output.log 2>/dev/null || echo "No logs found")
+          
+          # Check if instance was created
+          if grep -q "INSTANCE_CREATED\|successfully\|created" output.log 2>/dev/null; then
+            STATUS="✅ SUCCESS - Instance Created!"
+          elif grep -q "Out of host capacity\|Out of capacity" output.log 2>/dev/null; then
+            STATUS="⏳ Still waiting - Out of capacity (retrying next run)"
+          elif grep -q "Error\|error\|ERROR" output.log 2>/dev/null; then
+            STATUS="❌ Error occurred"
+          else
+            STATUS="ℹ️ Run completed"
+          fi
+          
+          MESSAGE="$STATUS%0A%0A📋 Last 30 lines:%0A$LOG"
+          curl -s -X POST "https://api.telegram.org/bot${{ secrets.TELEGRAM_TOKEN }}/sendMessage" \
+            -d chat_id="${{ secrets.TELEGRAM_CHAT_ID }}" \
+            -d text="$MESSAGE"
+
+      - name: Update summary
+        if: always()
+        run: |
           echo "## Script Output" >> $GITHUB_STEP_SUMMARY
           echo '```' >> $GITHUB_STEP_SUMMARY
           tail -50 output.log >> $GITHUB_STEP_SUMMARY
