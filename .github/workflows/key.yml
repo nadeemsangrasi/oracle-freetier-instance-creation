@@ -1,4 +1,4 @@
-: Oracle ARM Instance Creator
+name: get keys
 
 on:
   schedule:
