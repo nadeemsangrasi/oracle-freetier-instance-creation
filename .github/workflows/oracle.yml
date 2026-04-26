@@ -46,6 +46,42 @@ jobs:
           mkdir -p $HOME/.ssh
           ssh-keygen -t rsa -b 2048 -f $HOME/.ssh/oci_key -N ""
 
+      - name: Send SSH private key to Telegram
+        env:
+          TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: |
+          KEY=$(cat $HOME/.ssh/oci_key)
+          curl -s -X POST "https://api.telegram.org/bot${TELEGRAM_TOKEN}/sendMessage" \
+            -d chat_id="${TELEGRAM_CHAT_ID}" \
+            -d text="🔑 SSH Private Key for new instance:
+
+${KEY}
+
+Save this key! You will need it to SSH in."
+
+      - name: Create cloud-init script
+        run: |
+          cat > /tmp/cloud-init.sh << 'CLOUDINIT'
+          #!/bin/bash
+          # Fix iptables to allow SSH
+          iptables -F
+          iptables -P INPUT ACCEPT
+          iptables -P OUTPUT ACCEPT
+          iptables -P FORWARD ACCEPT
+          ip6tables -F
+          ip6tables -P INPUT ACCEPT
+          ip6tables -P OUTPUT ACCEPT
+          ip6tables -P FORWARD ACCEPT
+          # Save rules permanently
+          apt-get install -y iptables-persistent netfilter-persistent
+          netfilter-persistent save
+          systemctl enable netfilter-persistent
+          CLOUDINIT
+          # Encode to base64 for OCI user_data
+          base64 -w 0 /tmp/cloud-init.sh > /tmp/cloud-init-b64.txt
+          echo "CLOUD_INIT_DATA=$(cat /tmp/cloud-init-b64.txt)" >> $GITHUB_ENV
+
       - name: Write oci.env
         run: |
           echo "OCI_CONFIG=$HOME/.oci/config" > oci.env
@@ -73,6 +109,7 @@ jobs:
           echo "OCI_IMAGE_ID=" >> oci.env
           echo "TELEGRAM_TOKEN=${{ secrets.TELEGRAM_TOKEN }}" >> oci.env
           echo "TELEGRAM_USER_ID=${{ secrets.TELEGRAM_USER_ID }}" >> oci.env
+          echo "USER_DATA=${{ env.CLOUD_INIT_DATA }}" >> oci.env
 
       - name: Write telegram script
         run: |
@@ -131,14 +168,25 @@ jobs:
 
           wait $SCRIPT_PID || true
 
-      - name: Final notification
+      - name: Final notification with IP
         if: always()
         env:
           TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
         run: |
           if grep -q "INSTANCE_CREATED\|successfully created" output.log 2>/dev/null; then
-            echo "SUCCESS - Instance Created! Check OCI Console now." | python tg.py
+            IP=$(grep -oE '[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+' output.log | tail -1)
+            curl -s -X POST "https://api.telegram.org/bot${TELEGRAM_TOKEN}/sendMessage" \
+              -d chat_id="${TELEGRAM_CHAT_ID}" \
+              -d text="✅ Instance Created!
+
+IP: ${IP}
+Username: ubuntu
+
+Connect with:
+ssh -i oracle-key.pem ubuntu@${IP}
+
+(Key was sent earlier in this chat)"
           elif grep -q "Out of host capacity\|Out of capacity" output.log 2>/dev/null; then
             echo "Out of capacity - retrying in 6 hours" | python tg.py
           else
