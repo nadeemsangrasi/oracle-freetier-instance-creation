@@ -178,14 +178,15 @@ jobs:
           TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
         run: |
-          if grep -q "INSTANCE_CREATED\|successfully created" output.log 2>/dev/null; then
-            IP=$(grep -oE '[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+' output.log | tail -1)
+          # Check INSTANCE_CREATED file (created by main.py on success)
+          if [ -f "INSTANCE_CREATED" ]; then
+            INSTANCE_INFO=$(cat INSTANCE_CREATED)
             python3 -c "
           import os, urllib.request, json
           token = os.environ['TELEGRAM_TOKEN']
           chat_id = os.environ['TELEGRAM_CHAT_ID']
-          ip = '$IP'
-          msg = '✅ Instance Created!\n\nIP: ' + ip + '\nUsername: ubuntu\n\nConnect with:\nssh -i oracle-key.pem ubuntu@' + ip + '\n\n(Key was sent earlier in this chat)'
+          info = open('INSTANCE_CREATED').read()
+          msg = '✅ Instance Created!\n\n' + info + '\nUsername: ubuntu\n\nUse the SSH key sent earlier to connect.'
           data = json.dumps({'chat_id': chat_id, 'text': msg}).encode()
           req = urllib.request.Request(
               f'https://api.telegram.org/bot{token}/sendMessage',
@@ -198,6 +199,22 @@ jobs:
             echo "Out of capacity - retrying in 6 hours" | python tg.py
           else
             tail -20 output.log 2>/dev/null | python tg.py
+          fi
+
+      - name: Disable workflow if instance created
+        if: always()
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          if [ -f "INSTANCE_CREATED" ]; then
+            echo "Instance created — disabling workflow cron permanently..."
+            curl -s -X PUT \
+              -H "Authorization: Bearer $GH_TOKEN" \
+              -H "Accept: application/vnd.github+json" \
+              "https://api.github.com/repos/${{ github.repository }}/actions/workflows/oracle.yml/disable"
+            echo "Workflow disabled successfully."
+          else
+            echo "No instance created — keeping workflow active for next run."
           fi
 
       - name: Update summary
