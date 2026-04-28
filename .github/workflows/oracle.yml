@@ -70,19 +70,19 @@ jobs:
       - name: Create cloud-init script
         run: |
           cat > /tmp/cloud-init.sh << 'CLOUDINIT'
-          #!/bin/bash
-          iptables -F
-          iptables -P INPUT ACCEPT
-          iptables -P OUTPUT ACCEPT
-          iptables -P FORWARD ACCEPT
-          ip6tables -F
-          ip6tables -P INPUT ACCEPT
-          ip6tables -P OUTPUT ACCEPT
-          ip6tables -P FORWARD ACCEPT
-          DEBIAN_FRONTEND=noninteractive apt-get install -y iptables-persistent netfilter-persistent
-          netfilter-persistent save
-          systemctl enable netfilter-persistent
-          CLOUDINIT
+#!/bin/bash
+iptables -F
+iptables -P INPUT ACCEPT
+iptables -P OUTPUT ACCEPT
+iptables -P FORWARD ACCEPT
+ip6tables -F
+ip6tables -P INPUT ACCEPT
+ip6tables -P OUTPUT ACCEPT
+ip6tables -P FORWARD ACCEPT
+DEBIAN_FRONTEND=noninteractive apt-get install -y iptables-persistent netfilter-persistent
+netfilter-persistent save
+systemctl enable netfilter-persistent
+CLOUDINIT
           base64 -w 0 /tmp/cloud-init.sh > /tmp/cloud-init-b64.txt
           echo "CLOUD_INIT_DATA=$(cat /tmp/cloud-init-b64.txt)" >> $GITHUB_ENV
 
