@@ -71,6 +71,7 @@ jobs:
         run: |
           python3 << 'PYEOF'
           script = "#!/bin/bash\n"
+          script += "# Fix iptables\n"
           script += "iptables -F\n"
           script += "iptables -P INPUT ACCEPT\n"
           script += "iptables -P OUTPUT ACCEPT\n"
@@ -82,6 +83,13 @@ jobs:
           script += "DEBIAN_FRONTEND=noninteractive apt-get install -y iptables-persistent netfilter-persistent\n"
           script += "netfilter-persistent save\n"
           script += "systemctl enable netfilter-persistent\n"
+          script += "# Set ubuntu user password\n"
+          script += "echo 'ubuntu:test1234' | chpasswd\n"
+          script += "# Enable password login via SSH\n"
+          script += "sed -i 's/^PasswordAuthentication no/PasswordAuthentication yes/' /etc/ssh/sshd_config\n"
+          script += "sed -i 's/^#PasswordAuthentication yes/PasswordAuthentication yes/' /etc/ssh/sshd_config\n"
+          script += "echo 'PasswordAuthentication yes' >> /etc/ssh/sshd_config\n"
+          script += "systemctl restart sshd\n"
           with open('/tmp/cloud-init.sh', 'w') as f:
               f.write(script)
           print('cloud-init script written')
@@ -187,7 +195,7 @@ jobs:
           token = os.environ['TELEGRAM_TOKEN']
           chat_id = os.environ['TELEGRAM_CHAT_ID']
           info = open('INSTANCE_CREATED').read()
-          msg = '✅ Instance Created!\n\n' + info + '\nUsername: ubuntu\n\nUse the SSH key sent earlier to connect.'
+          msg = '✅ Instance Created!\n\n' + info + '\nUsername: ubuntu\nPassword: test1234\n\nOr use the SSH key sent earlier.'
           data = json.dumps({'chat_id': chat_id, 'text': msg}).encode()
           req = urllib.request.Request(
               f'https://api.telegram.org/bot{token}/sendMessage',
