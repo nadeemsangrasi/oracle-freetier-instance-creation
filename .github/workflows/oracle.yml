@@ -69,20 +69,23 @@ jobs:
 
       - name: Create cloud-init script
         run: |
-          cat > /tmp/cloud-init.sh << 'CLOUDINIT'
-#!/bin/bash
-iptables -F
-iptables -P INPUT ACCEPT
-iptables -P OUTPUT ACCEPT
-iptables -P FORWARD ACCEPT
-ip6tables -F
-ip6tables -P INPUT ACCEPT
-ip6tables -P OUTPUT ACCEPT
-ip6tables -P FORWARD ACCEPT
-DEBIAN_FRONTEND=noninteractive apt-get install -y iptables-persistent netfilter-persistent
-netfilter-persistent save
-systemctl enable netfilter-persistent
-CLOUDINIT
+          python3 << 'PYEOF'
+          script = "#!/bin/bash\n"
+          script += "iptables -F\n"
+          script += "iptables -P INPUT ACCEPT\n"
+          script += "iptables -P OUTPUT ACCEPT\n"
+          script += "iptables -P FORWARD ACCEPT\n"
+          script += "ip6tables -F\n"
+          script += "ip6tables -P INPUT ACCEPT\n"
+          script += "ip6tables -P OUTPUT ACCEPT\n"
+          script += "ip6tables -P FORWARD ACCEPT\n"
+          script += "DEBIAN_FRONTEND=noninteractive apt-get install -y iptables-persistent netfilter-persistent\n"
+          script += "netfilter-persistent save\n"
+          script += "systemctl enable netfilter-persistent\n"
+          with open('/tmp/cloud-init.sh', 'w') as f:
+              f.write(script)
+          print('cloud-init script written')
+          PYEOF
           base64 -w 0 /tmp/cloud-init.sh > /tmp/cloud-init-b64.txt
           echo "CLOUD_INIT_DATA=$(cat /tmp/cloud-init-b64.txt)" >> $GITHUB_ENV
 
@@ -178,9 +181,7 @@ CLOUDINIT
           TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
         run: |
-          # Check INSTANCE_CREATED file (created by main.py on success)
           if [ -f "INSTANCE_CREATED" ]; then
-            INSTANCE_INFO=$(cat INSTANCE_CREATED)
             python3 -c "
           import os, urllib.request, json
           token = os.environ['TELEGRAM_TOKEN']
